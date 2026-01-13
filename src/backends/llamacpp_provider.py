@@ -37,7 +37,8 @@ class LlamaCppProvider(LLMProvider):
             response = self.llm.create_chat_completion(
                 messages=messages,
                 temperature=kwargs.get("temperature", 0.7),
-                max_tokens=kwargs.get("max_tokens", 4096)
+                max_tokens=kwargs.get("max_tokens", 4096),
+                response_format={"type": "json_object"}
             )
             
             return {
