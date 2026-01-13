@@ -1,11 +1,13 @@
 import json
 import re
 from typing import Dict, Any, Optional
-from openai import OpenAI, APIError
+
+from src.backends.factory import ProviderFactory
+from src.backends.provider_interface import LLMProvider
 
 class PromptOptimizer:
-    def __init__(self, base_url: str = "http://localhost:1234/v1", api_key: str = "lm-studio"):
-        self.client = OpenAI(base_url=base_url, api_key=api_key)
+    def __init__(self, provider_type: str = "openai", **kwargs):
+        self.provider: LLMProvider = ProviderFactory.create_provider(provider_type, **kwargs)
         self.system_prompt = """
 You are an expert prompt engineer and optimization engine. Your task is to analyze the user's raw prompt and rewrite it into a highly effective, structured prompt using best practices (CRISPE, Chain-of-Thought).
 
@@ -29,27 +31,28 @@ You MUST return the output in strict JSON format with the following structure:
 Do not include any conversational text, markdown formatting (like ```json), or explanations outside the JSON object. Just return the JSON.
 """
 
+    def set_provider(self, provider_type: str, **kwargs):
+        self.provider = ProviderFactory.create_provider(provider_type, **kwargs)
+
     def optimize_prompt(self, raw_prompt: str, model: str) -> Dict[str, Any]:
         """
-        Sends the raw prompt to the LLM and returns the parsed JSON response.
+        Sends the raw prompt to the LLM via the active provider and returns the parsed JSON response.
         """
         try:
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": self.system_prompt},
-                    {"role": "user", "content": f"Optimize this prompt:\n\n{raw_prompt}"}
-                ],
-                temperature=0.7,
+            result = self.provider.generate(
+                system_prompt=self.system_prompt,
+                user_prompt=f"Optimize this prompt:\n\n{raw_prompt}",
+                model=model
             )
-            
-            content = response.choices[0].message.content
-            return self._parse_json_response(content)
+            content = result["content"]
+            parsed = self._parse_json_response(content)
+            # Ensure "final_prompt" exists even if parsing falls back
+            if "final_prompt" not in parsed:
+                parsed["final_prompt"] = content
+            return parsed
 
-        except APIError as e:
-            return {"error": f"API Error: {str(e)}"}
         except Exception as e:
-            return {"error": f"Unexpected Error: {str(e)}"}
+            return {"error": f"Optimization Error: {str(e)}"}
 
     def _parse_json_response(self, content: str) -> Dict[str, Any]:
         """
@@ -94,7 +97,6 @@ Do not include any conversational text, markdown formatting (like ```json), or e
 
     def get_available_models(self) -> list:
         try:
-            models = self.client.models.list()
-            return [model.id for model in models.data]
+            return self.provider.list_models()
         except Exception:
             return []

@@ -19,13 +19,19 @@ gh repo create prompt-forge --public --source=. --remote=origin
 ## 2. Push to Remote (If created via Web)
 Since we have already initialized the local repo and committed the files, you just need to link it.
 
-```bash
-# Add the remote (replace <YOUR_USERNAME> with your GitHub username)
-git remote add origin https://github.com/<YOUR_USERNAME>/prompt-forge.git
+1. **Create the repository** at [https://github.com/new](https://github.com/new)
+   - Name: `prompt-forge`
+   - Description: `The Ultimate Local-First Prompt Optimizer`
+   - **Do not** initialize with README, .gitignore, or License.
 
-# Rename branch to main
-git branch -M main
+2. **Run these commands:**
+
+```bash
+# Add the remote (with your specific username "ahmadzkn")
+git remote remove origin
+git remote add origin https://github.com/ahmadzkn/prompt-forge.git
 
 # Push to GitHub
+git branch -M main
 git push -u origin main
 ```

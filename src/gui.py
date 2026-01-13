@@ -4,6 +4,8 @@ import pyperclip
 from typing import Dict
 from src.optimizer import PromptOptimizer
 from src.database import DatabaseManager
+from src.utils.hardware_monitor import HardwareMonitor
+from src.utils.credential_manager import CredentialManager
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
@@ -17,7 +19,9 @@ class App(ctk.CTk):
         
         # Initialize Core Logic
         self.db = DatabaseManager()
-        self.optimizer = PromptOptimizer()
+        # Default to OpenAI initially, user can change
+        # Pass defaults for OpenAI
+        self.optimizer = PromptOptimizer(provider_type="openai", base_url="http://localhost:1234/v1")
         
         # Layout Config
         self.grid_columnconfigure(1, weight=1)
@@ -44,24 +48,44 @@ class App(ctk.CTk):
     def create_sidebar(self):
         self.sidebar_frame = ctk.CTkFrame(self, width=250, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(4, weight=1)
+        self.sidebar_frame.grid_rowconfigure(8, weight=1)
 
         ctk.CTkLabel(self.sidebar_frame, text="PromptForge", font=ctk.CTkFont(size=20, weight="bold")).grid(row=0, column=0, padx=20, pady=20)
 
-        # Settings
-        ctk.CTkLabel(self.sidebar_frame, text="Backend URL:", anchor="w").grid(row=1, column=0, padx=20, pady=(10, 0), sticky="w")
-        self.url_entry = ctk.CTkEntry(self.sidebar_frame)
-        self.url_entry.grid(row=2, column=0, padx=20, pady=(0, 10), sticky="ew")
-        self.url_entry.insert(0, "http://localhost:1234/v1")
+        # Backend Selection
+        ctk.CTkLabel(self.sidebar_frame, text="Backend Provider:", anchor="w").grid(row=1, column=0, padx=20, pady=(10, 0), sticky="w")
+        self.backend_menu = ctk.CTkOptionMenu(self.sidebar_frame, values=["LLM Studio", "Ollama", "Llama.cpp", "Anthropic", "Google Gemini", "Groq"], command=self.change_backend)
+        self.backend_menu.grid(row=2, column=0, padx=20, pady=(0, 10), sticky="ew")
+        self.backend_menu.set("LLM Studio")
 
-        ctk.CTkLabel(self.sidebar_frame, text="Model:", anchor="w").grid(row=3, column=0, padx=20, pady=(10, 0), sticky="w")
+        # Connection Settings
+        # Connection Settings
+        self.conn_label = ctk.CTkLabel(self.sidebar_frame, text="Backend URL:", anchor="w")
+        self.conn_label.grid(row=3, column=0, padx=20, pady=(10, 0), sticky="w")
+        
+        self.pass_entry = ctk.CTkEntry(self.sidebar_frame)
+        self.pass_entry.grid(row=4, column=0, padx=20, pady=(0, 10), sticky="ew")
+        self.pass_entry.insert(0, "http://localhost:1234/v1") # Default
+
+        ctk.CTkLabel(self.sidebar_frame, text="Model:", anchor="w").grid(row=5, column=0, padx=20, pady=(10, 0), sticky="w")
         self.model_option_menu = ctk.CTkOptionMenu(self.sidebar_frame, dynamic_resizing=False, values=["Loading..."])
-        self.model_option_menu.grid(row=4, column=0, padx=20, pady=(0, 10), sticky="ew")
+        self.model_option_menu.grid(row=6, column=0, padx=20, pady=(0, 10), sticky="ew")
 
         # History
-        ctk.CTkLabel(self.sidebar_frame, text="History:", anchor="w").grid(row=5, column=0, padx=20, pady=(20, 0), sticky="w")
-        self.history_frame = ctk.CTkScrollableFrame(self.sidebar_frame, label_text="Past Sessions")
-        self.history_frame.grid(row=6, column=0, padx=20, pady=10, sticky="nsew")
+        ctk.CTkLabel(self.sidebar_frame, text="History:", anchor="w").grid(row=7, column=0, padx=20, pady=(20, 0), sticky="w")
+        self.history_frame = ctk.CTkScrollableFrame(self.sidebar_frame, label_text="Past Sessions", height=300)
+        self.history_frame.grid(row=8, column=0, padx=20, pady=10, sticky="nsew")
+
+        # Hardware Stats (Bottom)
+        self.hardware_frame = ctk.CTkFrame(self.sidebar_frame)
+        self.hardware_frame.grid(row=9, column=0, padx=20, pady=10, sticky="ew")
+        self.cpu_label = ctk.CTkLabel(self.hardware_frame, text="CPU: --%", font=ctk.CTkFont(size=11))
+        self.cpu_label.pack(side="left", padx=5)
+        self.gpu_label = ctk.CTkLabel(self.hardware_frame, text="GPU: --%", font=ctk.CTkFont(size=11))
+        self.gpu_label.pack(side="right", padx=5)
+        
+        # Start Hardware Monitor
+        self.update_hardware_stats()
 
     def create_section_a(self):
         # Input Section
@@ -137,11 +161,39 @@ class App(ctk.CTk):
         threading.Thread(target=self.run_optimization, args=(raw_prompt,)).start()
 
     def run_optimization(self, raw_prompt):
-        url = self.url_entry.get().strip()
+        conn_value = self.pass_entry.get().strip()
         model = self.model_option_menu.get()
+        backend_name = self.backend_menu.get()
         
-        # Update optimizer config
-        self.optimizer = PromptOptimizer(base_url=url)
+        # Map display name to internal key
+        backend_map = {
+            "LLM Studio": "openai", 
+            "Ollama": "ollama",
+            "Llama.cpp": "llamacpp",
+            "Anthropic": "anthropic",
+            "Google Gemini": "gemini",
+            "Groq": "groq"
+        }
+        backend = backend_map.get(backend_name, "openai")
+         
+        # Configure Provider
+        kwargs = {}
+        if backend == "openai":
+            kwargs["base_url"] = conn_value
+        elif backend == "ollama":
+            kwargs["host"] = conn_value
+        elif backend == "llamacpp":
+            kwargs["model_path"] = conn_value
+            # Defaults for CPU/GPU - could expose to UI later
+            kwargs["n_gpu_layers"] = -1 # Try all layers if GPU avail
+        else:
+            # Cloud providers use api_key
+            kwargs["api_key"] = conn_value
+            # Save credential
+            if conn_value:
+                CredentialManager.save_credential(f"{backend}_api_key", conn_value)
+
+        self.optimizer.set_provider(backend, **kwargs)
         
         result = self.optimizer.optimize_prompt(raw_prompt, model)
         
@@ -181,14 +233,105 @@ class App(ctk.CTk):
     def load_models(self):
         # Fetch models in background
         def fetch():
-            models = self.optimizer.get_available_models()
-            if models:
-                self.after(0, lambda: self.model_option_menu.configure(values=models))
-                self.after(0, lambda: self.model_option_menu.set(models[0]))
+            # Ensure provider is configured correctly before fetching
+            backend_name = self.backend_menu.get()
+            conn_value = self.pass_entry.get().strip()
+            
+            # Map display name to internal key
+            backend_map = {
+                "LLM Studio": "openai", 
+                "Ollama": "ollama",
+                "Llama.cpp": "llamacpp",
+                "Anthropic": "anthropic",
+                "Google Gemini": "gemini",
+                "Groq": "groq"
+            }
+            backend = backend_map.get(backend_name, "openai")
+
+            kwargs = {}
+            if backend == "openai":
+                kwargs["base_url"] = conn_value
+            elif backend == "ollama":
+                kwargs["host"] = conn_value
+            elif backend == "llamacpp":
+                kwargs["model_path"] = conn_value
+                kwargs["n_gpu_layers"] = 0 # Just for check
             else:
-                self.after(0, lambda: self.model_option_menu.set("No models found"))
+                kwargs["api_key"] = conn_value
+            
+            # For Llama.cpp, instantiation is heavy (loads model). 
+            # We skip reloading if it's just a fetch/check unless the user optimizes.
+            # But get_available_models needs the instance.
+            # Llama.cpp loading might freeze UI if not careful, but this is already in a thread.
+            try:
+                self.optimizer.set_provider(backend, **kwargs)
+            except Exception as e:
+                print(f"Provider Load Error: {e}")
+                return
+
+
+            # Only fetch if we have a connection value (API key or URL)
+            if conn_value:
+                models = self.optimizer.get_available_models()
+                if models:
+                    self.after(0, lambda: self.model_option_menu.configure(values=models))
+                    self.after(0, lambda: self.model_option_menu.set(models[0]))
+                else:
+                    self.after(0, lambda: self.model_option_menu.set("No models found"))
         
         threading.Thread(target=fetch).start()
+    
+    def change_backend(self, choice):
+        # Update URL/Key fields based on choice
+        self.pass_entry.delete(0, "end")
+        
+        if choice == "LLM Studio":
+            self.conn_label.configure(text="Backend URL:")
+            self.pass_entry.configure(show="")
+            self.pass_entry.insert(0, "http://localhost:1234/v1")
+            
+        elif choice == "Ollama":
+            self.conn_label.configure(text="Backend Host:")
+            self.pass_entry.configure(show="")
+            self.pass_entry.insert(0, "http://localhost:11434")
+
+        elif choice == "Llama.cpp":
+            self.conn_label.configure(text="Model Path:")
+            self.pass_entry.configure(show="")
+            # User needs to paste path
+            self.pass_entry.insert(0, "C:/path/to/model.gguf")
+
+        else:
+            # Cloud Provider
+            self.conn_label.configure(text="API Key:")
+            self.pass_entry.configure(show="*")
+            
+            # Try load from keychain
+            backend_map = {
+                "Anthropic": "anthropic",
+                "Google Gemini": "gemini",
+                "Groq": "groq"
+            }
+            key = f"{backend_map.get(choice)}_api_key"
+            saved_key = CredentialManager.get_credential(key)
+            if saved_key:
+                self.pass_entry.insert(0, saved_key)
+        
+        self.load_models()
+
+    def update_hardware_stats(self):
+        stats = HardwareMonitor.get_system_stats()
+        self.cpu_label.configure(text=f"CPU: {stats['cpu_percent']}%")
+        
+        if stats['gpu_found']:
+             # Use first GPU for display
+             gpu = stats['gpus'][0]
+             self.gpu_label.configure(text=f"GPU: {gpu['load']}")
+        else:
+             self.gpu_label.configure(text="GPU: N/A")
+
+        # Schedule next update (2 seconds)
+        self.after(2000, self.update_hardware_stats)
 
     def load_history(self):
         # Clear existing

@@ -1,5 +1,13 @@
 customtkinter
 openai
+anthropic
+google-generativeai
+groq
+llama-cpp-python
 sqlalchemy
 pyperclip
 pydantic
+keyring
+psutil
+GPUtil
+ollama

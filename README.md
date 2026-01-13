@@ -1,54 +1,86 @@
-# PromptForge ⚡
-**The Ultimate Local-First Prompt Optimizer**
+# PromptForge: The Ultimate Prompt Optimizer
 
-PromptForge is a high-end, secure, and local desktop application designed to turn raw ideas into prompt engineering masterpieces. Built with Python and CustomTkinter, it leverages **LM Studio** (and other local LLMs) to analyze, restructure, and optimize your prompts using valid frameworks like CRISPE and Chain-of-Thought.
-
-![PromptForge UI](docs/screenshot.png) *(Add a screenshot here)*
+PromptForge is a high-end, local-first Desktop Application designed to engineer and optimize prompts using a variety of LLM backends. It leverages a "Meta-Prompting" technique to break down raw ideas into structured, high-performance prompts adhering to best practices (CRISPE, Chain-of-Thought).
 
 ## 🚀 Features
-- **Local Intelligence**: Uses your local GPU (via LM Studio) for 100% privacy.
-- **Meta-Prompt Engine**: Automatically decomposes prompts into key elements (Persona, Context, Constraints, etc.).
-- **Structured Output**: View and edit each component of the prompt individually.
-- **Persistent History**: Everything is saved to a local SQLite database.
-- **Modern UI**: Sleek dark mode interface built with CustomTkinter.
+
+-   **Multi-Backend Support**:
+    -   **Local**: LM Studio (OpenAI Compatible), Ollama, Llama.cpp (Native GGUF).
+    -   **Cloud**: Anthropic (Claude), Google Gemini, Groq (Llama 3 on LPU).
+-   **Advanced Prompt Engineering**: Breaks prompts into 10 structured elements:
+    -   Persona, Context, Instruction, Constraints, Format, Exemplars, Tone, Delimiters, Data, Technique.
+-   **Hardware Monitor**: Real-time CPU and GPU usage tracking in the sidebar.
+-   **Secure Storage**: API Keys are safely stored in your OS Keychain (Windows Credential Manager / macOS Keychain).
+-   **Local History**: All optimization sessions are saved locally to an SQLite database.
+-   **Modern UI**: Built with CustomTkinter for a sleek, dark-mode experience.
 
 ## 🛠️ Prerequisites
-- **Python 3.10+**
-- **LM Studio**: Running locally (default: `http://localhost:1234`).
-  - *Note: Ensure you have a model loaded in LM Studio and the Server is turned ON.*
+
+-   **Python 3.10+** installed.
+-   **Git** installed.
+-   *(Optional)* **LM Studio** or **Ollama** running locally.
+-   *(Optional)* **C++ Build Tools** (Visual Studio) if you want GPU acceleration for Llama.cpp on Windows.
 
 ## 📦 Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/PromptForge.git
-   cd PromptForge
-   ```
+1.  **Clone the Repository**:
+    ```bash
+    git clone https://github.com/ahmadzkn/prompt-forge.git
+    cd prompt-forge
+    ```
 
-2. **Run the Setup Script**
-   This handles virtual environment creation and dependency installation automatically.
-   ```bash
-   python setup_env.py
-   ```
+2.  **Run Setup Script**:
+    This script creates a virtual environment and installs all dependencies.
+    ```powershell
+    # Windows
+    python setup_env.py
+    ```
 
-## 🖥️ Usage
+    *Alternatively, manual setup:*
+    ```bash
+    python -m venv venv
+    .\venv\Scripts\activate
+    pip install -r requirements.txt
+    ```
 
-1. **Launch the App**
-   ```bash
-   # Windows
-   venv\Scripts\python main.py
-   
-   # Linux/Mac
-   ./venv/bin/python main.py
-   ```
+## 🎮 Usage
 
-2. **Optimize**
-   - Paste your raw prompt.
-   - Click **Optimize**.
-   - Watch as your prompt is reverse-engineered and polished.
+1.  **Launch the Application**:
+    ```powershell
+    .\venv\Scripts\python main.py
+    ```
+
+2.  **Configure Backend (Sidebar)**:
+    -   **LLM Studio**: Ensure LM Studio is running (Server ON). Default URL: `http://localhost:1234/v1`.
+    -   **Ollama**: Ensure Ollama is running. Default Host: `http://localhost:11434`.
+    -   **Llama.cpp**: Select this and paste the absolute path to your `.gguf` model file.
+    -   **Cloud (Anthropic/Gemini/Groq)**: Select the provider and enter your API Key. It will be saved securely.
+
+3.  **Optimize**:
+    -   Type your raw idea in the "Raw Prompt" box.
+    -   Click **Optimize Prompt**.
+    -   Review the "Structured Elements" and the final "Optimized Prompt".
+
+## 🧩 Project Structure
+
+```
+prompt-forge/
+├── src/
+│   ├── backends/       # Provider implementations (OpenAI, Ollama, Llama.cpp, etc.)
+│   ├── utils/          # Hardware monitor, Credential manager
+│   ├── gui.py          # CustomTkinter UI
+│   ├── optimizer.py    # Core optimization logic
+│   └── database.py     # SQLite session management
+├── main.py             # Entry point
+├── requirements.txt    # Usage dependencies
+├── setup_env.py        # Environment setup script
+└── README.md           # This file
+```
 
 ## 🤝 Contributing
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
-## 📄 License
-[MIT](https://choosealicense.com/licenses/mit/)
+Contributions are welcome! Please fork the repository and submit a Pull Request.
+
+## 📜 License
+
+MIT License.
