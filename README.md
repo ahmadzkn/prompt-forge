@@ -1,5 +1,11 @@
 # PromptForge: The Ultimate Prompt Optimizer
 
+> [!CAUTION]
+> **PRE-ALPHA VERSION**: This project is currently in a pre-alpha stage and is an active work in progress. Features, APIs, and interfaces are subject to change without notice. Use with discretion.
+
+> [!WARNING]
+> **DISCLAIMER**: Remote LLM backend providers (Anthropic, Google Gemini, Groq) have been implemented but **have not been fully tested yet**. Please report any connection or generation issues.
+
 PromptForge is a high-end, local-first Desktop Application designed to engineer and optimize prompts using a variety of LLM backends. It leverages a "Meta-Prompting" technique to break down raw ideas into structured, high-performance prompts adhering to best practices (CRISPE, Chain-of-Thought).
 
 ## 🚀 Features
